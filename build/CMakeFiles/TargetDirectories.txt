@@ -1,0 +1,6 @@
+/home/noah/programs/obj_allocator/build/CMakeFiles/rebuild_cache.dir
+/home/noah/programs/obj_allocator/build/CMakeFiles/edit_cache.dir
+/home/noah/programs/obj_allocator/build/CMakeFiles/tests-obj_slab_test.dir
+/home/noah/programs/obj_allocator/build/CMakeFiles/driver.dir
+/home/noah/programs/obj_allocator/build/CMakeFiles/run_gen_sys_header.dir
+/home/noah/programs/obj_allocator/build/CMakeFiles/gen_sys_header.dir

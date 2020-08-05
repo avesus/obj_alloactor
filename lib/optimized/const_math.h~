@@ -1,0 +1,48 @@
+#ifndef _CONST_MATH_H_
+#define _CONST_MATH_H_
+
+#include <misc/cpp_attributes.h>
+#include <optimized/bits.h>
+namespace cmath {
+
+template<typename T>
+constexpr T ALWAYS_INLINE CONST_ATTR
+min(const T a, const T b) {
+    return a < b ? a : b;
+}
+
+template<typename T>
+constexpr T ALWAYS_INLINE CONST_ATTR
+max(const T a, const T b) {
+    return a > b ? a : b;
+}
+
+template<typename T>
+constexpr T ALWAYS_INLINE CONST_ATTR
+roundup(const T a, const T b) {
+    return b * ((a + (b - 1)) / b);
+}
+
+template<typename T>
+constexpr T ALWAYS_INLINE CONST_ATTR
+rounddown(const T a, const T b) {
+    return b * (a / b);
+}
+
+template<typename T>
+constexpr T ALWAYS_INLINE CONST_ATTR
+roundup_div(const T a, const T b) {
+    return (a + (b - 1)) / b;
+}
+
+template<typename T>
+constexpr T ALWAYS_INLINE CONST_ATTR
+fast_mod(const T v, const T m) {
+    // this is somehow faster than straightup % operator
+    return (v < m) ? v : (v % m);
+}
+
+
+}  // namespace cmath
+
+#endif
