@@ -24,7 +24,7 @@ struct slab {
     slab() = default;
 
 
-    uint32_t
+    void
     _free(T * addr) {
         IMPOSSIBLE_VALUES(((uint64_t)addr) < ((uint64_t)(&obj_arr[0])));
 
@@ -32,14 +32,14 @@ struct slab {
             (((uint64_t)addr) - ((uint64_t)(&obj_arr[0]))) / sizeof(T);
 
         atomic_or(freed_slots + (pos / 64), ((1UL) << (pos % 64)));
-        return pos / 64;
     }
 
     uint64_t
     _allocate(const uint32_t start_cpu) {
         for (uint32_t i = 0; i < nvec; ++i) {
             // try allocate
-            if (BRANCH_LIKELY(available_slots[i] != FULL_ALLOC_VEC)) {
+            if (BRANCH_LIKELY(
+                              available_slots[i] != FULL_ALLOC_VEC)) {
                 const uint32_t idx =
                     bits::find_first_zero<uint64_t>(available_slots[i]);
                 if (BRANCH_UNLIKELY(or_if_unset(available_slots + i,
@@ -69,40 +69,6 @@ struct slab {
         }
         return FAILED_VEC_FULL;
     }
-
-    uint64_t
-    _allocate(const uint32_t start_cpu, const uint32_t i) {
-        // try allocate
-        if (BRANCH_LIKELY(available_slots[i] != FULL_ALLOC_VEC)) {
-            const uint32_t idx =
-                bits::find_first_zero<uint64_t>(available_slots[i]);
-            if (BRANCH_UNLIKELY(or_if_unset(available_slots + i,
-                                            ((1UL) << idx),
-                                            start_cpu))) {
-                return FAILED_RSEQ;
-            }
-            return ((uint64_t)&obj_arr[64 * i + idx]);
-        }
-        // try free
-        else if (freed_slots[i] != EMPTY_FREE_VEC) {
-            const uint64_t reclaimed_slots =
-                try_reclaim_free_slots(available_slots + i,
-                                       freed_slots + i,
-                                       start_cpu);
-            if (BRANCH_LIKELY(reclaimed_slots)) {
-                atomic_xor(freed_slots + i, reclaimed_slots);
-
-                return ((uint64_t)(
-                    &obj_arr[64 * i +
-                             bits::find_first_one<uint64_t>(reclaimed_slots)]));
-            }
-            else {
-                return FAILED_RSEQ;
-            }
-        }
-        return FAILED_VEC_FULL;
-    }
-
 };
 
 #endif

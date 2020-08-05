@@ -20,9 +20,9 @@
 #define _free(X, Y)  s[X]->_free(Y)
 
 #define SUPER_DUPER_SLAB
-const uint32_t os_nvec    = 8;
-const uint32_t ss_nvec    = 8;
-const uint32_t ss_ss_nvec = 1;
+const uint32_t os_nvec    = 1;
+const uint32_t ss_nvec    = 1;
+const uint32_t ss_ss_nvec = 8;
 #ifdef SUPER_DUPER_SLAB
 const uint64_t max_capacity = 64 *  64 *  64 * ss_ss_nvec;
 typedef super_slab<
