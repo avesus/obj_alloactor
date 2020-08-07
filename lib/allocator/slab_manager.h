@@ -40,7 +40,6 @@ struct type_helper {
     typedef super_slab<
         T,
         get_N(nlevels - level, per_level_nvec...),
-        get_N(nlevels - (level - 1), per_level_nvec...),
         typename type_helper<T, nlevels, level - 1, per_level_nvec...>::type>
         type;
 };

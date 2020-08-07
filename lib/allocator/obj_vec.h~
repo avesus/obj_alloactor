@@ -1,0 +1,65 @@
+#ifndef _OBJ_VEC_H_
+#define _OBJ_VEC_H_
+
+template<typename... Vals>
+constexpr int32_t
+get_N(int32_t n, Vals... vals) {
+    int32_t temp[] = { static_cast<int32_t>(vals)... };
+    return temp[n];
+}
+
+template<int32_t nlevels, int32_t level, int32_t... per_level_nvec>
+struct type_helper;
+
+
+template<int32_t nlevel, int32_t... per_level_nvec>
+struct type_helper<nlevel, 0, per_level_nvec...> {
+    typedef outer_vec<get_N(nlevel, per_level_nvec...)> type;
+};
+
+template<int32_t nlevels, int32_t level, int32_t... per_level_nvec>
+struct type_helper {
+    typedef inner_vec<
+        get_N(nlevels - level, per_level_nvec...),
+        typename type_helper<T, nlevels, level - 1, per_level_nvec...>::type>
+        type;
+};
+
+
+template<uint32_t nvec>
+struct outer_vec {
+    uint64_t v[nvec];
+};
+
+template<uint32_t nvec, typename wrapper_vecT>
+struct inner_vec {
+    uint64_t     v[nvec];
+    wrapper_vecT v_next[64 * nvec];
+};
+
+template<typename T, uint32_t levels, uint32_t... per_level_nvec>
+struct obj_vec {
+    using alloc_vecs =
+        typename type_helper<levels - 1, level - 1, per_level_nvec>::type;
+    using free_vecs = typename type_helper<levels - 1, level - 1, 8>::type;
+
+    alloc_vecs avecs ALIGN_ATTR(CACHE_LINE_SIZE);
+    free_vecs fvecs ALIGN_ATTR(CACHE_LINE_SIZE);
+
+    T *
+    _allocate_0(outer_vec<get_N(0)> ovec, const uint32_t start_cpu) {
+        for (uint32_t i = 0; i < get_N(0); ++i) {
+            if (BRANCH_LIKELY(ovec.v[i] != vec::FULL)) {
+                const uint32_t idx = bits::find_first_zero<uint64_t>(v[i]);
+                if (BRANCH_UNLIKELY(
+                        or_if_unset(ovec.v + i, ((1UL) << idx), start_cpu))) {
+                    return vecs::FAILED_RSEQ;
+                }
+                return 
+            }
+        }
+    }
+};
+
+
+#endif

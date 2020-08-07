@@ -1,1 +1,0 @@
-/usr/bin/c++    -rdynamic CMakeFiles/driver.dir/src/driver.cc.o CMakeFiles/driver.dir/lib/util/arg.cc.o  -o driver -lpthread 

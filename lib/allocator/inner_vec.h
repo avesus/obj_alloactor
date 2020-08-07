@@ -2,14 +2,13 @@
 #define _INNER_VEC_H_
 
 #include <misc/cpp_attributes.h>
-
 #include <optimized/bits.h>
 #include <optimized/const_math.h>
+#include <system/sys_info.h>
 
 #include "rseq/rseq_base.h"
-#include "rseq/rseq_ops.h"
 
-#include <allocator/internal_returns.h>
+#include <allocator/internal_vec_returns.h>
 #include <allocator/safe_atomics.h>
 
 #include <stdint.h>
@@ -27,13 +26,16 @@ struct inner_allocation_vec {
     // free_vecs and obj_start will both be computable at compile time. Since
     // this function will be inlined they should be compiled out.
     uint32_t ALWAYS_INLINE
-    _allocate(const uint32_t                     start_cpu,
-              inner_free_vec<objT, nvec> * const free_vecs) {
-        uint32_t i;
-        for (; i < nvec; ++i) {
+    _allocate(const uint32_t start_cpu, uint64_t * const free_vecs) {
+        for (uint32_t i; i < nvec; ++i) {
             if (BRANCH_LIKELY(v[i] != FULL_ALLOC_VEC)) {
                 const uint32_t idx = bits::find_first_zero<uint64_t>(v[i]);
-                const uint32_t ret = (next_vecs + 64 * i + idx)->_allocate(start_cpu, free_vecs + 
+                const uint32_t ret =
+                    (next_vecs + 64 * i + idx)
+                        ->_allocate(start_cpu, free_vecs + 8 * (64 * i + idx));
+                if(BRANCH_LIKELY(vec::successful(ret))) {
+                    return ret + 64 * i + idx;
+                }
                 if (BRANCH_UNLIKELY(
                         or_if_unset(v + i, ((1UL) << idx), start_cpu))) {
                     return FAILED_RSEQ;

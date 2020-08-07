@@ -16,25 +16,33 @@
 #include <allocator/slab_manager.h>
 #include <allocator/super_slab.h>
 
+#include <allocator/obj_vec.h>
+
 #define _allocate(X) s[X]->_allocate(X)
 #define _free(X, Y)  s[X]->_free(Y)
 
-#define SUPER_DUPER_SLAB
-const uint32_t os_nvec    = 1;
+#define OBJ_VEC
+const uint32_t os_nvec    = 2;
 const uint32_t ss_nvec    = 1;
-const uint32_t ss_ss_nvec = 8;
-#ifdef SUPER_DUPER_SLAB
-const uint64_t max_capacity = 64 *  64 *  64 * ss_ss_nvec;
-typedef super_slab<
-    uint64_t,
-    ss_ss_nvec,
-    ss_nvec,
-    super_slab<uint64_t, ss_nvec, os_nvec, slab<uint64_t, os_nvec>>>
+const uint32_t ss_ss_nvec = 1;
+#ifdef OBJ_VEC
+typedef obj_vec<uint64_t,
+                2,
+                1,
+                1,
+                2
+                > test_slab_t;
+const uint64_t max_capacity = 2 * 64 * 64 * 64;
+
+#elif defined SUPER_DUPER_SLAB
+const uint64_t max_capacity = 64 * 64 * 64 * os_nvec * ss_nvec * ss_ss_nvec;
+typedef super_slab<uint64_t,
+                   ss_ss_nvec,
+                   super_slab<uint64_t, ss_nvec, slab<uint64_t, os_nvec>>>
               test_slab_t;
 #elif defined SUPER_SLAB
 const uint64_t max_capacity = 64 * ss_nvec * 64 * os_nvec;
-typedef super_slab<uint64_t, ss_nvec, os_nvec, slab<uint64_t, os_nvec>>
-    test_slab_t;
+typedef super_slab<uint64_t, ss_nvec, slab<uint64_t, os_nvec>> test_slab_t;
 #else
 const uint64_t                  max_capacity = 64 * os_nvec;
 typedef slab<uint64_t, os_nvec> test_slab_t;
@@ -212,6 +220,8 @@ static const char * function_names[NTEST_FUNCTIONS]{ "test_alloc_free",
 
 int
 main() {
+
+
     pthread_barrier_init(&b, NULL, NTHREAD);
 
     test_slab_t ** s = (test_slab_t **)calloc(8, sizeof(test_slab_t **));
@@ -223,10 +233,12 @@ main() {
     pthread_attr_setstacksize(&attr, (1 << 16));
     pthread_attr_setguardsize(&attr, 0);
 
-    for (uint32_t f_idx = 0; f_idx < NTEST_FUNCTIONS; f_idx++) {
+    for (uint32_t f_idx = 2; f_idx < NTEST_FUNCTIONS; f_idx++) {
         for (uint32_t i = 0; i < 8; i++) {
             s[i] = (test_slab_t *)aligned_alloc(64, sizeof(test_slab_t));
+            #ifndef OBJ_VEC
             memset(s[i], 0, 128);
+            #endif
             new ((void * const)s[i]) test_slab_t();
         }
 
@@ -260,7 +272,10 @@ main() {
         }
 
         fprintf(stderr, "%s ->\n\t", function_names[f_idx]);
-        fprintf(stderr, "Threads = %d, Num_Allocs = %d\n\t", NTHREAD, TEST_SIZE);
+        fprintf(stderr,
+                "Threads = %d, Num_Allocs = %d\n\t",
+                NTHREAD,
+                TEST_SIZE);
         fprintf(stderr,
                 "\tCycles       : %.4E\n\t",
                 (double)(true_time_cycles / NTHREAD));

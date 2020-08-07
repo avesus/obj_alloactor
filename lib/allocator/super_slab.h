@@ -14,8 +14,7 @@
 
 template<typename T,
          uint32_t nvec         = 8,
-         uint32_t inner_nvec   = 8,
-         typename inner_slab_t = slab<T, inner_nvec>>
+         typename inner_slab_t = slab<T>>
 struct super_slab {
     uint64_t     available_slabs[nvec] ALIGN_ATTR(CACHE_LINE_SIZE);
     uint64_t     freed_slabs[nvec] ALIGN_ATTR(CACHE_LINE_SIZE);

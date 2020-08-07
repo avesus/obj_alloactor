@@ -68,7 +68,7 @@ try_reclaim_all_free_slots(uint64_t * v_cpu_ptr,
 }
 
 
-uint32_t ALWAYS_INLINE
+uint32_t NEVER_INLINE
 or_if_unset(uint64_t * v_cpu_ptr, const uint64_t new_bit_mask, const uint32_t start_cpu) {
     asm volatile goto(
         RSEQ_INFO_DEF(32) RSEQ_CS_ARR_DEF() RSEQ_PREP_CS_DEF()
@@ -100,7 +100,7 @@ abort:
 }
 
 
-uint32_t ALWAYS_INLINE
+uint32_t NEVER_INLINE
 xor_if_set(uint64_t * v_cpu_ptr, const uint64_t new_bit_mask, const uint32_t start_cpu) {
     asm volatile goto(
         RSEQ_INFO_DEF(32) RSEQ_CS_ARR_DEF() RSEQ_PREP_CS_DEF()

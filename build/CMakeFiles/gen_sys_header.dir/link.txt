@@ -1,1 +1,0 @@
-/usr/bin/c++    -rdynamic CMakeFiles/gen_sys_header.dir/src/gen_system_header.cc.o CMakeFiles/gen_sys_header.dir/lib/util/arg.cc.o  -o gen_sys_header -lpthread 
