@@ -43,6 +43,33 @@ fast_mod(const T v, const T m) {
 }
 
 template<typename T>
+constexpr uint32_t ALWAYS_INLINE CONST_ATTR
+ulog2(T v) {
+    uint32_t r, s;
+    if constexpr (sizeof(T) == sizeof(uint64_t)) {
+        r = (v > 0xffffffff) << 5;
+        v >>= r;
+        s = (v > 0xffff) << 4;
+        v >>= s;
+        r |= s;
+    }
+    else {
+        r = (v > 0xffff) << 4;
+        v >>= r;
+    }
+    s = (v > 0xff) << 3;
+    v >>= s;
+    r |= s;
+    s = (v > 0xf) << 2;
+    v >>= s;
+    r |= s;
+    s = (v > 0x3) << 1;
+    v >>= s;
+    r |= s;
+    return r | (v >> 1);
+}
+
+template<typename T>
 constexpr T ALWAYS_INLINE CONST_ATTR
 next_p2(T v) {
     v--;

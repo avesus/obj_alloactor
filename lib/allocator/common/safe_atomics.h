@@ -2,7 +2,6 @@
 #define _SAFE_ATOMICS_H_
 
 #include <misc/cpp_attributes.h>
-
 #include <stdint.h>
 
 
@@ -11,6 +10,11 @@
 constexpr void ALWAYS_INLINE
 atomic_xor(uint64_t * const v_loc, const uint64_t xor_bits) {
     __atomic_fetch_xor(v_loc, xor_bits, __ATOMIC_RELAXED);
+}
+
+constexpr void ALWAYS_INLINE
+atomic_or(uint64_t * const v_loc, const uint64_t xor_bits) {
+    __atomic_fetch_or(v_loc, xor_bits, __ATOMIC_RELAXED);
 }
 
 

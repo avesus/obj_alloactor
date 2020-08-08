@@ -5,9 +5,4 @@
 #include "rseq_helpers.h"
 #include "rseq_ops.h"
 
-
-
-
-
-
 #endif

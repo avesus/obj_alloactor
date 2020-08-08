@@ -1,26 +1,41 @@
 #ifndef _SUPER_SLAB_H_
 #define _SUPER_SLAB_H_
 
+#include <stdint.h>
+
 #include <misc/cpp_attributes.h>
 #include <optimized/bits.h>
 #include <system/sys_info.h>
 
-#include "rseq/rseq_base.h"
+#include <allocator/rseq/rseq_base.h>
 
-#include "internal_returns.h"
+#include <allocator/common/internal_returns.h>
+#include <allocator/common/safe_atomics.h>
+#include <allocator/common/vec_constants.h>
+
 #include "obj_slab.h"
-#include "safe_atomics.h"
 
-
-template<typename T,
-         uint32_t nvec         = 8,
-         typename inner_slab_t = slab<T>>
+template<typename T, uint32_t nvec = 8, typename inner_slab_t = obj_slab<T>>
 struct super_slab {
+
     uint64_t     available_slabs[nvec] ALIGN_ATTR(CACHE_LINE_SIZE);
     uint64_t     freed_slabs[nvec] ALIGN_ATTR(CACHE_LINE_SIZE);
     inner_slab_t inner_slabs[64 * nvec];
 
     super_slab() = default;
+
+    void
+    _optimistic_free(T * const addr, const uint32_t start_cpu) {
+        IMPOSSIBLE_VALUES(((uint64_t)addr) < ((uint64_t)(&obj_arr[0])));
+        const uint64_t pos =
+            (((uint64_t)addr) - ((uint64_t)(&obj_arr[0]))) / sizeof(T);
+        (inner_slabs + pos)->_optimistic_free(addr, start_cpu);
+        if (BRANCH_UNLIKELY(rseq_xor(available_slabs + (pos / 64),
+                                     ((1UL) << (pos % 64)),
+                                     start_cpu))) {
+            atomic_or(freed_slabs + (pos / 64), ((1UL) << (pos % 64)));
+        }
+    }
 
     void
     _free(T * addr) {
@@ -39,6 +54,12 @@ struct super_slab {
                 while (BRANCH_LIKELY(available_slabs[i] != FULL_ALLOC_VEC)) {
                     const uint32_t idx =
                         bits::find_first_zero<uint64_t>(available_slabs[i]);
+
+                    // we were preempted between if statement and ffz
+                    if (BRANCH_UNLIKELY(idx >= 64)) {
+                        return FAILED_RSEQ;
+                    }
+
                     const uint64_t ret =
                         (inner_slabs + 64 * i + idx)->_allocate(start_cpu);
                     if (BRANCH_LIKELY(successful(
@@ -74,5 +95,6 @@ struct super_slab {
         return FAILED_VEC_FULL;
     }
 };
+
 
 #endif

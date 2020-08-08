@@ -8,7 +8,8 @@ namespace cutil {
 template<typename T>
 constexpr uint32_t ALWAYS_INLINE CONST_ATTR
 type_size_log() {
-    return bits::find_last_one<decltype(sizeof(T))>(sizeof(T));
+    return cmath::ulog2<decltype(sizeof(T))>(
+        cmath::next_p2<decltype(sizeof(T))>(sizeof(T)));
 }
 
 
