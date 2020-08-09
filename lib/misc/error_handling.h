@@ -10,20 +10,35 @@
 #include <string.h>
 
 #include <misc/cpp_attributes.h>
+#include <misc/macro_helper.h>
 // Error* versions are if errno will have been set.
 // Die* versions are if not errno related
 
 namespace ERR {
 
+#define ERROR_ASSERT(...)                                                      \
+    CAT(ERROR_ASSERT_, NOT_ONE_NARG(__VA_ARGS__))(__VA_ARGS__)
 
-#define ERROR_ASSERT(X, msg, args...)                                          \
+#define DIE_ASSERT(...) CAT(DIE_ASSERT_, NOT_ONE_NARG(__VA_ARGS__))(__VA_ARGS__)
+
+#define ERROR_ASSERT_MANY(X, msg, args...)                                     \
     if (BRANCH_UNLIKELY(!(X))) {                                               \
         ERROR_DIE(msg, ##args);                                                \
     }
 
-#define DIE_ASSERT(X, msg, args...)                                            \
+#define ERROR_ASSERT_ONE(X)                                                    \
+    if (BRANCH_UNLIKELY(!(X))) {                                               \
+        ERROR_DIE(NULL);                                                       \
+    }
+
+#define DIE_ASSERT_MANY(X, msg, args...)                                       \
     if (BRANCH_UNLIKELY(!(X))) {                                               \
         DIE(msg, ##args);                                                      \
+    }
+
+#define DIE_ASSERT_ONE(X)                                                      \
+    if (BRANCH_UNLIKELY(!(X))) {                                               \
+        DIE(NULL);                                                             \
     }
 
 #define DIE(msg, args...)                                                      \
@@ -42,11 +57,16 @@ errdie(const char * file_name,
        const char * msg,
        ...) {
     va_list ap;
-    va_start(ap, msg);
+    if (msg) {
+        va_start(ap, msg);
+    }
     fprintf(stderr, "%s:%d: ", file_name, line_number);
-    vfprintf(stderr, msg,
-             ap);  // NOLINT /* This warning is a clang-tidy bug */
-    va_end(ap);
+    if (msg) {
+        vfprintf(stderr,
+                 msg,
+                 ap);  // NOLINT /* This warning is a clang-tidy bug */
+        va_end(ap);
+    }
     fprintf(stderr, "\t%d:%s\n", error_number, strerror(error_number));
     exit(-1);
 }
@@ -54,11 +74,16 @@ errdie(const char * file_name,
 void COLD_ATTR NEVER_INLINE
 die(const char * file_name, uint32_t line_number, const char * msg, ...) {
     va_list ap;
-    va_start(ap, msg);
+    if (msg) {
+        va_start(ap, msg);
+    }
     fprintf(stderr, "%s:%d: ", file_name, line_number);
-    vfprintf(stderr, msg,
-             ap);  // NOLINT /* This warning is a clang-tidy bug */
-    va_end(ap);
+    if (msg) {
+        vfprintf(stderr,
+                 msg,
+                 ap);  // NOLINT /* This warning is a clang-tidy bug */
+        va_end(ap);
+    }
     exit(-1);
 }
 

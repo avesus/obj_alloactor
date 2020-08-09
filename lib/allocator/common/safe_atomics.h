@@ -13,6 +13,11 @@ atomic_xor(uint64_t * const v_loc, const uint64_t xor_bits) {
 }
 
 constexpr void ALWAYS_INLINE
+atomic_unset(uint64_t * const v_loc, const uint64_t unset_bits) {
+    __atomic_fetch_and(v_loc, ~unset_bits, __ATOMIC_RELAXED);
+}
+
+constexpr void ALWAYS_INLINE
 atomic_or(uint64_t * const v_loc, const uint64_t xor_bits) {
     __atomic_fetch_or(v_loc, xor_bits, __ATOMIC_RELAXED);
 }

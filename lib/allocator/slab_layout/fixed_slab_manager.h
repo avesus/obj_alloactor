@@ -7,8 +7,8 @@
 
 #include <misc/cpp_attributes.h>
 #include <optimized/bits.h>
+#include <system/mmap_helpers.h>
 #include <system/sys_info.h>
-#include <system/mmap_helper.h>
 
 #include <allocator/common/internal_returns.h>
 #include <allocator/rseq/rseq_base.h>
@@ -22,10 +22,10 @@
 // simple slab manager that simply allocates 1 super_slab/obj_slab per
 // processor. Region size must be set with template parameters
 
-template<typename T, int32_t levels, int32_t... per_level_nvec>
+template<typename T, uint32_t levels, uint32_t... per_level_nvec>
 struct fixed_slab_manager;
 
-template<typename T, int32_t levels, int32_t... per_level_nvec>
+template<typename T, uint32_t levels, uint32_t... per_level_nvec>
 struct internal_fixed_slab_manager {
     using slab_t =
         typename fixed_slab_manager<T, levels, per_level_nvec...>::slab_t;
@@ -33,29 +33,43 @@ struct internal_fixed_slab_manager {
     internal_fixed_slab_manager() = default;
 };
 
-template<typename T, int32_t levels, int32_t... per_level_nvec>
+template<typename T, uint32_t levels, uint32_t... per_level_nvec>
 struct fixed_slab_manager {
-    using slab_t =
-        typename type_helper<T, levels, 0, per_level_nvec...>::type;
+    using slab_t = typename type_helper<T, levels, 0, per_level_nvec...>::type;
 
-    internal_fixed_slab_manager<T, levels, per_level_nvec...> * m;
+    static constexpr uint32_t
+    _capacity(uint32_t n) {
+        return 64 * get_N<per_level_nvec...>(n) * (n ? _capacity(n - 1) : 1);
+    }
+    static constexpr const uint32_t capacity = _capacity(levels);
+
+    using internal_manager_t =
+        internal_fixed_slab_manager<T, levels, per_level_nvec...>;
+    
+    internal_manager_t * m;
 
     fixed_slab_manager()
-        : fixed_slab_manager(mmap_alloc_noreserve(sizeof(
-              internal_fixed_slab_manager<T, levels, per_level_nvec...>))) {
+        : fixed_slab_manager(mmap_alloc_noreserve(sizeof(internal_manager_t))) {
 
         // this is just to get the first page for each CPU
         // DO NOT USE ON MULTI SOCKET SYSTEM!!!!
-        for (uint32_t i = 0; i < NPROC; ++i) {
-            m->obj_slabs[i] = 0;
+        for (uint32_t i = 0; i < NPROCS; ++i) {
+            *((uint64_t *)(m->obj_slabs + i)) = 0;
         }
     }
 
     fixed_slab_manager(void * const base) {
-        m = (internal_fixed_slab_manager<T, levels, per_level_nvec...> *)base;
-        PTR_ALIGNED_TO(m, CACHE_LINE_SIZE);
-        new ((void * const)base)
-            internal_fixed_slab_manager<T, levels, per_level_nvec...>();
+        m = (internal_manager_t *)base;
+        new ((void * const)base) internal_manager_t();
+    }
+
+    ~fixed_slab_manager() {
+        safe_munmap(m, sizeof(internal_manager_t));
+    }
+
+    void
+    reset() {
+        memset(m, 0, sizeof(internal_manager_t));
     }
 
     T *

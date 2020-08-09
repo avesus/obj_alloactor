@@ -8,9 +8,9 @@
 
 
 uint64_t NEVER_INLINE
-try_reclaim_free_slots(uint64_t * v_cpu_ptr,
-                       uint64_t * free_v_cpu_ptr_then_temp,
-                       const uint32_t   start_cpu) {
+try_reclaim_free_slots(uint64_t *     v_cpu_ptr,
+                       uint64_t *     free_v_cpu_ptr_then_temp,
+                       const uint32_t start_cpu) {
     uint64_t ret_reclaimed_slots = 0;
     asm volatile(
         RSEQ_INFO_DEF(32)
@@ -41,9 +41,9 @@ try_reclaim_free_slots(uint64_t * v_cpu_ptr,
 
 
 uint64_t NEVER_INLINE
-try_reclaim_all_free_slots(uint64_t * v_cpu_ptr,
-                           uint64_t * free_v_cpu_ptr,
-                           const uint32_t   start_cpu) {
+try_reclaim_all_free_slabs(uint64_t *     v_cpu_ptr,
+                           uint64_t *     free_v_cpu_ptr,
+                           const uint32_t start_cpu) {
     uint64_t ret_reclaimed_slots = 0;
     asm volatile(
         RSEQ_INFO_DEF(32)
@@ -71,7 +71,9 @@ try_reclaim_all_free_slots(uint64_t * v_cpu_ptr,
 
 
 uint32_t NEVER_INLINE
-or_if_unset(uint64_t * v_cpu_ptr, const uint64_t new_bit_mask, const uint32_t start_cpu) {
+or_if_unset(uint64_t *     v_cpu_ptr,
+            const uint64_t new_bit_mask,
+            const uint32_t start_cpu) {
     asm volatile goto(
         RSEQ_INFO_DEF(32) RSEQ_CS_ARR_DEF() RSEQ_PREP_CS_DEF()
             RSEQ_CMP_CUR_VS_START_CPUS()
@@ -101,8 +103,12 @@ abort:
     return 1;
 }
 
+
+
 uint32_t NEVER_INLINE
-rseq_xor(uint64_t * const v_cpu_ptr, const uint64_t new_bit_mask, const uint32_t start_cpu) {
+rseq_xor(uint64_t * const v_cpu_ptr,
+         const uint64_t   new_bit_mask,
+         const uint32_t   start_cpu) {
     asm volatile goto(
         RSEQ_INFO_DEF(32) RSEQ_CS_ARR_DEF() RSEQ_PREP_CS_DEF()
             RSEQ_CMP_CUR_VS_START_CPUS()
@@ -129,8 +135,133 @@ rseq_xor(uint64_t * const v_cpu_ptr, const uint64_t new_bit_mask, const uint32_t
 abort:
     return 1;
 }
+
 uint32_t NEVER_INLINE
-xor_if_set(uint64_t * const v_cpu_ptr, const uint64_t new_bit_mask, const uint32_t start_cpu) {
+rseq_any_cpu_or(uint64_t * const v_start_ptr, const uint64_t new_bit_mask) {
+    asm volatile goto(
+        RSEQ_INFO_DEF(32)
+        RSEQ_CS_ARR_DEF()
+        RSEQ_PREP_CS_DEF()
+        "movl 4(%[rseq_abi]), %%ecx\n\t"
+        "sal $6, %%ecx\n\t"
+        "leaq (%[v_start_ptr], %%rcx, 1), %%rcx\n\t"
+        "orq %[new_bit_mask], (%%rcx)\n\t"
+        "2:\n\t"
+        RSEQ_START_ABORT_DEF() "jmp %l[abort]\n\t" RSEQ_END_ABORT_DEF()
+        /* start output labels */
+        :
+        /* end output labels */
+
+        /* start input labels */
+        : [ new_bit_mask ] "r"(new_bit_mask),
+          [ rseq_abi ] "g"(&__rseq_abi),
+          [ v_start_ptr ] "g"(v_start_ptr)
+        /* end input labels */
+        : "memory", "cc", "rax", "rcx"
+        : abort);
+    return 0;
+abort:
+    return 1;
+}
+
+
+uint32_t NEVER_INLINE
+rseq_any_cpu_incr(uint64_t * const v_start_ptr) {
+    asm volatile goto(
+        RSEQ_INFO_DEF(32)
+        RSEQ_CS_ARR_DEF()
+        RSEQ_PREP_CS_DEF()
+        "movl 4(%[rseq_abi]), %%ecx\n\t"
+        "sal $6, %%ecx\n\t"
+        "leaq (%[v_start_ptr], %%rcx, 1), %%rcx\n\t"
+        "addq $1, (%%rcx)\n\t"
+        "2:\n\t"
+        RSEQ_START_ABORT_DEF() "jmp %l[abort]\n\t" RSEQ_END_ABORT_DEF()
+        /* start output labels */
+        :
+        /* end output labels */
+
+        /* start input labels */
+
+        : [ rseq_abi ] "g"(&__rseq_abi),
+          [ v_start_ptr ] "g"(v_start_ptr)
+        /* end input labels */
+        : "memory", "cc", "rax", "rcx"
+        : abort);
+    return 0;
+abort:
+    return 1;
+
+}
+
+
+uint32_t NEVER_INLINE
+rseq_or(uint64_t * const v_cpu_ptr,
+        const uint64_t   new_bit_mask,
+        const uint32_t   start_cpu) {
+    asm volatile goto(
+        RSEQ_INFO_DEF(32) RSEQ_CS_ARR_DEF() RSEQ_PREP_CS_DEF()
+            RSEQ_CMP_CUR_VS_START_CPUS()
+        /* start critical section contents */
+        "orq %[new_bit_mask], (%[v_cpu_ptr])\n\t"
+        "2:\n\t"  // post_commit_ip - start_ip
+        /* end critical section contents */
+
+        RSEQ_START_ABORT_DEF() "jmp %l[abort]\n\t" RSEQ_END_ABORT_DEF()
+
+        /* start output labels */
+        :
+        /* end output labels */
+
+        /* start input labels */
+        : [ start_cpu ] "g"(start_cpu),
+          [ new_bit_mask ] "g"(new_bit_mask),
+          [ rseq_abi ] "g"(&__rseq_abi),
+          [ v_cpu_ptr ] "g"(v_cpu_ptr)
+        /* end input labels */
+        : "memory", "cc", "rax"
+        : abort);
+    return 0;
+abort:
+    return 1;
+}
+
+uint32_t NEVER_INLINE
+rseq_and(uint64_t * const v_cpu_ptr,
+        const uint64_t   new_bit_mask,
+        const uint32_t   start_cpu) {
+    asm volatile goto(
+        RSEQ_INFO_DEF(32) RSEQ_CS_ARR_DEF() RSEQ_PREP_CS_DEF()
+            RSEQ_CMP_CUR_VS_START_CPUS()
+        /* start critical section contents */
+        "andq %[new_bit_mask], (%[v_cpu_ptr])\n\t"
+        "2:\n\t"  // post_commit_ip - start_ip
+        /* end critical section contents */
+
+        RSEQ_START_ABORT_DEF() "jmp %l[abort]\n\t" RSEQ_END_ABORT_DEF()
+
+        /* start output labels */
+        :
+        /* end output labels */
+
+        /* start input labels */
+        : [ start_cpu ] "g"(start_cpu),
+          [ new_bit_mask ] "g"(new_bit_mask),
+          [ rseq_abi ] "g"(&__rseq_abi),
+          [ v_cpu_ptr ] "g"(v_cpu_ptr)
+        /* end input labels */
+        : "memory", "cc", "rax"
+        : abort);
+    return 0;
+abort:
+    return 1;
+}
+
+
+uint32_t NEVER_INLINE
+xor_if_set(uint64_t * const v_cpu_ptr,
+           const uint64_t   new_bit_mask,
+           const uint32_t   start_cpu) {
     asm volatile goto(
         RSEQ_INFO_DEF(32) RSEQ_CS_ARR_DEF() RSEQ_PREP_CS_DEF()
             RSEQ_CMP_CUR_VS_START_CPUS()
@@ -152,6 +283,38 @@ xor_if_set(uint64_t * const v_cpu_ptr, const uint64_t new_bit_mask, const uint32
           [ new_bit_mask ] "g"(new_bit_mask),
           [ rseq_abi ] "g"(&__rseq_abi),
           [ v_cpu_ptr ] "g"(v_cpu_ptr)
+        /* end input labels */
+        : "memory", "cc", "rax"
+        : abort);
+    return 0;
+abort:
+    return 1;
+}
+
+
+
+uint32_t NEVER_INLINE
+acquire_lock(uint64_t * const lock_ptr, const uint32_t start_cpu) {
+    asm volatile goto(
+        RSEQ_INFO_DEF(32) RSEQ_CS_ARR_DEF() RSEQ_PREP_CS_DEF()
+            RSEQ_CMP_CUR_VS_START_CPUS()
+        /* start critical section contents */
+        "testq $1, (%[lock_ptr])\n\t"
+        "jnz 4f\n\t"
+        "addq $1, (%[lock_ptr])\n\t"
+        "2:\n\t"  // post_commit_ip - start_ip
+        /* end critical section contents */
+
+        RSEQ_START_ABORT_DEF() "jmp %l[abort]\n\t" RSEQ_END_ABORT_DEF()
+
+        /* start output labels */
+        :
+        /* end output labels */
+
+        /* start input labels */
+        : [ start_cpu ] "g"(start_cpu),
+          [ rseq_abi ] "g"(&__rseq_abi),
+          [ lock_ptr ] "g"(lock_ptr)
         /* end input labels */
         : "memory", "cc", "rax"
         : abort);

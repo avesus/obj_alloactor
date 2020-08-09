@@ -80,4 +80,27 @@ static_assert(_region_size<uint64_t, 1, 2, 3, 4>(3) ==
               1 * 2 * 3 * 4 * 64 * 64 * 64 * 64 * sizeof(uint64_t));
 
 
+namespace detail {
+template<typename T, uint32_t level, uint32_t... per_level_nvec>
+struct cvals {
+    
+    static constexpr const uint32_t get_nvecs =
+        _get_nvecs<per_level_nvec...>(level);
+    static constexpr const uint32_t calculate_alloc_arr_size =
+        _calculate_alloc_arr_size<per_level_nvec...>(level);
+
+    static constexpr const uint32_t calculate_free_arr_size =
+        _calculate_free_arr_size(level);
+
+    static constexpr const uint32_t total_alloc_arr_size =
+        _total_alloc_arr_size<per_level_nvec...>(level);
+    static constexpr const uint32_t total_free_arr_size =
+        _total_alloc_arr_size<per_level_nvec...>(level);
+
+    static constexpr const uint32_t region_size =
+        _region_size<T, per_level_nvec...>(level);
+};
+
+}  // namespace detail
+
 #endif

@@ -45,7 +45,7 @@ fast_mod(const T v, const T m) {
 template<typename T>
 constexpr uint32_t ALWAYS_INLINE CONST_ATTR
 ulog2(T v) {
-    uint32_t r, s;
+    uint32_t r = 0, s = 0;
     if constexpr (sizeof(T) == sizeof(uint64_t)) {
         r = (v > 0xffffffff) << 5;
         v >>= r;
